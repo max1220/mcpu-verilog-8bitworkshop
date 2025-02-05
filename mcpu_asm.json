@@ -7,25 +7,56 @@
     "alu_ops":{"bits":3, "toks":["add", "and", "or", "xor", "a", "b", "x", "y"]},
     "alu_tests":{"bits":3, "toks":["a_eq_z", "b_eq_z", "a_gt_b", "a_eq_b", "a_lt_b", "b_lo", "b_hi", "sense"]},
     "alu_b_ops":{"bits":2, "toks":["b", "imm", "rshift", "lshift"]},
-    "alu_flags":{"bits":2, "toks":["_", "c", "i", "ci"]},
+    "alu_flags":{"bits":2, "toks":["_", "i", "c", "ci"]},
     "imm7":{"bits":7},
     "imm14":{"bits":14},
     "imm21":{"bits":21},
     "imm28":{"bits":28}
   },
   "rules":[
+    {"fmt":"halt",                      "bits":["00000000"]},
+    {"fmt":"nop",                       "bits":["00001001"]},
+    
     {"fmt":"mov ~src ~dst",             "bits":["00",1,0]},
     {"fmt":"cmov ~src ~dst",            "bits":["01",1,0]},
-    {"fmt":"imov ~imm7 ~dst",           "bits":["1",0,"00",1,"011"]},
+    
     {"fmt":"test ~alu_tests",           "bits":["10000",0]},
-    {"fmt":"test ~alu_b_ops ~alu_flags ~alu_tests",              "bits":["1",0,1,2]},
+    {"fmt":"test ~alu_b_ops ~alu_flags ~alu_tests", "bits":["1",0,1,2]},
     {"fmt":"alu ~alu_ops",              "bits":["10000",0]},
     {"fmt":"alu ~alu_b_ops ~alu_ops",   "bits":["1",0,"00",1]},
     {"fmt":"alu ~alu_b_ops ~alu_flags ~alu_ops",   "bits":["1",0,1,2]},
+
     {"fmt":"imm ~imm7",                 "bits":["1",0]},
-    {"fmt":"imm ~imm14",                "bits":["1",{"a":0, "b":0, "n":7},"1",{"a":0, "b":7, "n":7}]},
-    {"fmt":"imm ~imm21",                "bits":["1",{"a":0, "b":0, "n":7},"1",{"a":0, "b":7, "n":7},"1",{"a":0, "b":14, "n":7}]},
-    {"fmt":"imm ~imm28",                "bits":["1",{"a":0, "b":0, "n":7},"1",{"a":0, "b":7, "n":7},"1",{"a":0, "b":14, "n":7},"1",{"a":0, "b":21, "n":7}]},
-    {"fmt":"halt",                      "bits":["00000000"]}
+    {"fmt":"imm ~imm14",                "bits":[
+      "1",{"a":0, "b":7, "n":7},
+      "1",{"a":0, "b":0, "n":7}
+    ]},
+    {"fmt":"imm ~imm21",                "bits":[
+      "1",{"a":0, "b":14, "n":7},
+      "1",{"a":0, "b":7, "n":7},
+      "1",{"a":0, "b":0, "n":7}
+    ]},
+    {"fmt":"imm ~imm28",                "bits":[
+      "1",{"a":0, "b":21, "n":7},
+      "1",{"a":0, "b":14, "n":7},
+      "1",{"a":0, "b":7, "n":7},
+      "1",{"a":0, "b":0, "n":7}
+    ]},
+    
+    {"fmt":"imov ~imm7 ~dst",           "bits":[
+      "1",0,
+      "00",1,"011"
+    ]},
+    {"fmt":"imov ~imm14 ~dst",          "bits":[
+      "1",{"a":0, "b":7, "n":7},
+      "1",{"a":0, "b":0, "n":7},
+      "00",1,"011"
+    ]},
+    {"fmt":"imov ~imm21 ~dst",          "bits":[
+      "1",{"a":0, "b":14, "n":7},
+      "1",{"a":0, "b":7, "n":7},
+      "1",{"a":0, "b":0, "n":7},
+      "00",1,"011"
+    ]}
   ]
 }
