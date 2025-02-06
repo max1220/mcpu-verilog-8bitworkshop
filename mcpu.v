@@ -102,8 +102,20 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   
   // create ROM image from assembly
   initial begin
+    ram[0] = 32'h71111111;
+    ram[1] = 32'h23000000;
+    ram[2] = 32'h20300000;
+    ram[3] = 32'h20030000;
+    ram[4] = 32'h20003000;
+    ram[5] = 32'h20000300;
+    ram[6] = 32'h20000030;
+    ram[7] = 32'h20000003;
+    
     rom = '{
       __asm
+      
+      
+      
       ; This program fills memory from 0x800 to 0xf7f with the address of th memory.
       ; The screen is memory-mapped there(128x120 pixels, scaled 2x to screen).
       .arch mcpu_asm
@@ -111,20 +123,23 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
       .len 0x100
       start:
         imov 0x800 ALU_A ; start value
-        imov 0xf7f ALU_B ; end value
+        imov 0xf80 ALU_B ; end value
         imov loop_start I ; loop start
         imov loop_end J ; loop exit
       loop_start:
-        ; conditional branch to end if a == b
-        test A_EQ_B
-        cmov J PC
+        ; set k = alu_a
+        ALU A
+        MOV ALU K
+        ; set ram[k] = 0x71247
+        mov K ADDR
+        imov 0x71247 RAM
         ; set k,alu_a = a+1
         alu IMM C ADD
         mov ALU K
         mov K ALU_A
-        ; set ram[k] = k
-        mov K ADDR
-        mov K RAM
+        ; conditional branch to end if a == b
+        test A_EQ_B
+        cmov J PC
         ; continue loop
         mov i PC
       loop_end:
