@@ -28,24 +28,26 @@
 
 
 module MCPU_CORE(clk, reset, sense, rom_addr, rom_value, ram_addr, ram_in, ram_out, ram_we, x, y, i, j, k);
+  parameter DATA_WIDTH = 32;
+  
   input clk;
   input reset;
   
   // CPU state
-  reg [31:0] pc;
-  reg [31:0] addr;
-  reg [31:0] imm;
-  reg [31:0] alu_a;
-  reg [31:0] alu_b;
-  output reg [31:0] i;
-  output reg [31:0] j;
-  output reg [31:0] k;
+  reg [DATA_WIDTH-1:0] pc;
+  reg [DATA_WIDTH-1:0] addr;
+  reg [DATA_WIDTH-1:0] imm;
+  reg [DATA_WIDTH-1:0] alu_a;
+  reg [DATA_WIDTH-1:0] alu_b;
+  output reg [DATA_WIDTH-1:0] i;
+  output reg [DATA_WIDTH-1:0] j;
+  output reg [DATA_WIDTH-1:0] k;
   reg last_imm;
 
   // RAM logic
-  input [31:0] ram_in;
-  output [31:0] ram_out;
-  output [31:0] ram_addr;
+  input [DATA_WIDTH-1:0] ram_in;
+  output [DATA_WIDTH-1:0] ram_out;
+  output [DATA_WIDTH-1:0] ram_addr;
   output ram_we;
   assign ram_out = data_bus;
   assign ram_addr = addr;
@@ -53,7 +55,7 @@ module MCPU_CORE(clk, reset, sense, rom_addr, rom_value, ram_addr, ram_in, ram_o
   
   // ROM logic
   input [7:0] rom_value;
-  output [31:0] rom_addr;
+  output [DATA_WIDTH-1:0] rom_addr;
   assign rom_addr = pc;
   
   // instruction decoding
@@ -67,15 +69,15 @@ module MCPU_CORE(clk, reset, sense, rom_addr, rom_value, ram_addr, ram_in, ram_o
   wire should_execute = op_is_imm ? 0 : (op_is_cond ? alu_f_out : 1);
   
   // core-internal main data bus
-  wire [31:0] data_bus;
+  wire [DATA_WIDTH-1:0] data_bus;
   
   // ALU
   input sense;
-  input [31:0] x;
-  input [31:0] y;
+  input [DATA_WIDTH-1:0] x;
+  input [DATA_WIDTH-1:0] y;
   wire alu_f_out;
-  wire [31:0] alu_d_out;
-  MCPU_ALU alu(
+  wire [DATA_WIDTH-1:0] alu_d_out;
+  MCPU_ALU #(DATA_WIDTH) alu(
     .a(alu_a),
     .b(alu_b),
     .x(x),
@@ -104,14 +106,14 @@ module MCPU_CORE(clk, reset, sense, rom_addr, rom_value, ram_addr, ram_in, ram_o
   always @(posedge clk) begin
     if (reset) begin
       // reset CPU state
-      pc <= 32'b0;
-      addr <= 32'b0;
-      imm <= 32'b0;
-      alu_a <= 32'b0;
-      alu_b <= 32'b0;
-      i <= 32'b0;
-      j <= 32'b0;
-      k <= 32'b0;
+      pc <= 0;
+      addr <= 0;
+      imm <= 0;
+      alu_a <= 0;
+      alu_b <= 0;
+      i <= 0;
+      j <= 0;
+      k <= 0;
       last_imm <= 0;
     end else begin
       // normal CPU operation
@@ -119,9 +121,9 @@ module MCPU_CORE(clk, reset, sense, rom_addr, rom_value, ram_addr, ram_in, ram_o
       if (op_is_imm) begin
         // is immediate value instruction
         if (last_imm) begin
-          imm <= {imm[24:0], op_imm};
+          imm <= {imm[DATA_WIDTH-8:0], op_imm};
         end else begin
-          imm <= {25'b0, op_imm};
+          imm <= {{DATA_WIDTH-7{1'0}},op_imm};
         end
         last_imm <= 1;
       end else begin

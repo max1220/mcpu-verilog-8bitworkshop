@@ -36,19 +36,22 @@
 
 // MCPU ALU B pre-operation module
 module MCPU_ALU_B(op, b_in, b_out);
-  input [31:0] op; // value from IMM register containing ALU op + IMM
-  input [31:0] b_in;
-  output [31:0] b_out;
+  parameter DATA_WIDTH = 32;
+  
+  input [DATA_WIDTH-1:0] op; // value from IMM register containing ALU op + IMM
+  input [DATA_WIDTH-1:0] b_in;
+  output [DATA_WIDTH-1:0] b_out;
+  
   
   // output of multiplexer can be inverted by INV bit
   assign b_out = op[`MCPU_ALU_OP_INV_BIT] ? ~b_muxed : b_muxed;
   
   // multiplexer for b operation
-  wire [31:0] b_muxed;
+  wire [DATA_WIDTH-1:0] b_muxed;
   always @(*) begin
     case (op[`MCPU_ALU_BOP])
       `MCPU_ALU_BOP_B: assign b_muxed = b_in;
-      `MCPU_ALU_BOP_IMM: assign b_muxed = { 7'b0, op[31:7] };
+      `MCPU_ALU_BOP_IMM: assign b_muxed = { 7'b0, op[DATA_WIDTH-1:7] };
       `MCPU_ALU_BOP_LSHIFT: assign b_muxed = b_in<<1;
       `MCPU_ALU_BOP_RSHIFT: assign b_muxed = b_in>>1;
     endcase
@@ -57,17 +60,18 @@ endmodule
 
 // complete MCPU ALU module
 module MCPU_ALU(op, a, b, x, y, sense, d_out, f_out);
-  input [31:0] a,b,x,y,op;
-  input sense;
-  output [31:0] d_out;
-  output f_out;
+  parameter DATA_WIDTH = 32;
   
-  assign f_out = op[`MCPU_ALU_OP_INV_BIT] ? ~f : f;
+  input [DATA_WIDTH-1:0] a,b,x,y,op;
+  input sense;
+  output [DATA_WIDTH-1:0] d_out;
+  output f_out;
+  wire [DATA_WIDTH-1:0] b_out;
   wire f;
-  wire [31:0] b_out;
+  assign f_out = op[`MCPU_ALU_OP_INV_BIT] ? ~f : f;
 
   // create B pre-ALU instance
-  MCPU_ALU_B alu_b(
+  MCPU_ALU_B #(DATA_WIDTH) alu_b(
     .op(op),
     .b_in(b),
     .b_out(b_out)
@@ -76,7 +80,7 @@ module MCPU_ALU(op, a, b, x, y, sense, d_out, f_out);
   always @(*) begin
     // ALU data output multiplexer
     case (op[`MCPU_ALU_OP])
-      `MCPU_ALU_OP_ADD: assign d_out = op[`MCPU_ALU_OP_CIN_BIT] ? (a + b_out + 32'b1) : (a + b_out);
+      `MCPU_ALU_OP_ADD: assign d_out = op[`MCPU_ALU_OP_CIN_BIT] ? (a + b_out + 1) : (a + b_out);
       `MCPU_ALU_OP_AND: assign d_out = a & b_out;
       `MCPU_ALU_OP_OR: assign d_out = a | b_out;
       `MCPU_ALU_OP_XOR: assign d_out = a ^ b_out;
@@ -93,7 +97,7 @@ module MCPU_ALU(op, a, b, x, y, sense, d_out, f_out);
       `MCPU_ALU_TEST_A_EQ_B: assign f = a == b;
       `MCPU_ALU_TEST_A_LT_B: assign f = a < b;
       `MCPU_ALU_TEST_B_LO: assign f = b[0];
-      `MCPU_ALU_TEST_B_HI: assign f = b[31];
+      `MCPU_ALU_TEST_B_HI: assign f = b[DATA_WIDTH-1];
       `MCPU_ALU_TEST_SENSE: assign f = sense;
     endcase
   end
