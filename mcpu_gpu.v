@@ -117,21 +117,5 @@ module MCPU_GPU(clk, hpos, vpos, display_on, rgb, data_bus, vram_addr, vram_re, 
       2'b11: fb_rgb = fb_128x64_4bpp_rgb;
     endcase
   end
-  
-  // initial setup(could be done by CPU as well)
-  /*
-  initial begin
-    // clear vram to 0
-    for (integer i = 0; i < 8192; i = i + 1) begin
-      vram[i] = 8'b0;
-    end
-    
-    // initial values for control registers
-    vram[(2**13)-4] = 8'b11001111; // border
-    vram[(2**13)-3] = 8'b01001110; // color0
-    vram[(2**13)-2] = 8'b01001110; // color1
-    vram[(2**13)-1] = 8'b00000000; // control register
-  end
-  */
 endmodule
 `endif

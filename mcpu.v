@@ -1,4 +1,5 @@
 `include "hvsync_generator.v"
+`include "mcpu_irom.v"
 `include "mcpu_dram.v"
 `include "mcpu_alu.v"
 `include "mcpu_core.v"
@@ -10,6 +11,8 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   
   // data bus that connects memory and external register to the MCPU core
   wire [DATA_WIDTH-1:0] data_bus;
+  // RAM address output from CPU(REG_ADDR)
+  wire [DATA_WIDTH-1:0] data_bus_addr;
   
   // special top-level inputs/outputs
   input clk, reset;
@@ -19,33 +22,35 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   output [3:0] rgb;
   
   // create memory for CPU core(IROM/DRAM)
-  // 12-bit IROM address(4096 bytes)
+  // 14-bit IROM address(16384 bytes)
   // 14-bit DRAM address(16384 words)
   // addresses are padded by the MCPU_MEMORY module to DATA_WIDTH
-  wire [DATA_WIDTH-1:0] irom_addr; // ROM address output from CPU(CNT_PC)
-  wire [7:0] irom_out; // value provided to CPU from ROM
-  wire [DATA_WIDTH-1:0] data_bus_addr; // RAM address output from CPU(REG_ADDR)
-  wire [DATA_WIDTH-1:0] dram_out; // value provided from RAM to CPU
-  wire [DATA_WIDTH-1:0] dram_in; // RAM write value output from CPU
-  wire dram_we; // if RAM should be written this clock
-  wire dram_re; // if value from RAM should be driven to the data bus
-  MCPU_MEMORY #(12, DATA_WIDTH, DATA_WIDTH, 14, DATA_WIDTH) mcpu_memory(
+  wire [15:0] cnt_pc; // ROM address output from CPU(CNT_PC)
+  wire [7:0] irom_out0, irom_out1; // value provided to CPU from ROM
+  
+  wire dram_we, dram_re; // read/write enables for access using the DRAM interface
+  MCPU_DRAM #(DATA_WIDTH, 14) mcpu_dram(
     .clk(clk),
     .reset(reset),
-    .irom_addr(irom_addr),
-    .irom_out(irom_out),
-    .dram_addr(data_bus_addr),
+    .dram_addr(data_bus_addr[13:0]),
     .data_bus(data_bus),
     .dram_we(dram_we),
     .dram_re(dram_re)
   );
   
+  MCPU_IROM #(14) mcpu_irom(
+    .irom_addr0(cnt_pc[13:0]),
+    .irom_out0(irom_out0),
+    .irom_addr1(data_bus_addr[13:0]),
+    .irom_out1(irom_out1)
+  );
+  
   // create CPU core
   wire sense; // SENSE special ALU input(can "wait for" signal level on this input)
-  wire [DATA_WIDTH-1:0] x,y; // ALU X,Y extra inputs
+  wire [DATA_WIDTH-1:0] alu_x, alu_y; // ALU X,Y extra inputs
   assign sense = vsync; // sense input is connected to vsync
-  assign x = {{DATA_WIDTH-8{1'0}}, hpaddle}; // X input is gampad horizontal input 
-  assign y = {{DATA_WIDTH-8{1'0}}, keycode}; // Y input is keyboard input keycode 
+  assign alu_x = {{DATA_WIDTH-8{1'0}}, vpaddle[3:0], hpaddle[3:0]}; // X input is gampad input 
+  assign alu_y = {{DATA_WIDTH-8{1'0}}, keycode}; // Y input is keyboard input keycode 
   wire regs_ext = 0; // set to 1 to read value for reg_i, reg_j, reg_k, from data_bus
   wire [2:0] regs_ext_we; // 3 write-enable signals for external I,J,K
   wire [2:0] regs_ext_re; // 3 read-enable signals for external I,J,K
@@ -54,13 +59,13 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
     .reset(reset),
     .sense(sense),
     .data_bus(data_bus),
-    .irom_addr(irom_addr),
-    .irom_in(irom_out),
+    .cnt_pc(cnt_pc),
+    .irom_in(irom_out0),
     .reg_addr(data_bus_addr),
     .dram_re(dram_re),
     .dram_we(dram_we),
-    .x(x),
-    .y(y),
+    .alu_x(alu_x),
+    .alu_y(alu_y),
     .regs_ext(regs_ext),
     .regs_ext_we(regs_ext_we),
     .regs_ext_re(regs_ext_re)
@@ -80,9 +85,6 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   );
   
   // create GPU instance
-  wire [7:0] gpu_d_in = 0;
-  wire [7:0] gpu_d_out;
-  wire [12:0] gpu_addr_in = 0;
   wire vram_re, vram_we;
   assign vram_re = 0;
   assign vram_we = 0;
@@ -93,7 +95,7 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
     .display_on(display_on),
     .rgb(rgb),
     .data_bus(data_bus[7:0]),
-    .vram_addr(gpu_addr_in),
+    .vram_addr(data_bus_addr[12:0]),
     .vram_we(vram_we),
     .vram_re(vram_re)
   );

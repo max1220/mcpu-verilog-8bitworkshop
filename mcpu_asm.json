@@ -1,5 +1,5 @@
 {
-  "name":"mcpu",
+  "name":"mcpu_asm",
   "width":8,
   "vars":{
     "src":{"bits":3, "toks":["pc", "addr", "ram", "imm", "alu", "i", "j", "k"]},
@@ -19,20 +19,16 @@
   "rules":[
     {"fmt":"halt",                      "bits":["00000000"]},
     {"fmt":"nop",                       "bits":["00001001"]},
-    
     {"fmt":"lit ~lit8",                 "bits":[0]},
     {"fmt":"lit ~lit16",                "bits":[0]},
     {"fmt":"lit ~lit32",                "bits":[0]},
-    
     {"fmt":"mov ~src ~dst",             "bits":["00",1,0]},
     {"fmt":"cmov ~src ~dst",            "bits":["01",1,0]},
-    
     {"fmt":"test ~alu_tests",           "bits":["10000",0]},
     {"fmt":"test ~alu_b_ops ~alu_flags ~alu_tests", "bits":["1",0,1,2]},
     {"fmt":"alu ~alu_ops",              "bits":["10000",0]},
     {"fmt":"alu ~alu_b_ops ~alu_ops",   "bits":["1",0,"00",1]},
     {"fmt":"alu ~alu_b_ops ~alu_flags ~alu_ops",   "bits":["1",0,1,2]},
-
     {"fmt":"imm ~imm7",                 "bits":["1",0]},
     {"fmt":"imm ~imm14",                "bits":[
       "1",{"a":0, "b":7, "n":7},
@@ -49,7 +45,6 @@
       "1",{"a":0, "b":7, "n":7},
       "1",{"a":0, "b":0, "n":7}
     ]},
-    
     {"fmt":"imov ~imm7 ~dst",           "bits":[
       "1",0,
       "00",1,"011"

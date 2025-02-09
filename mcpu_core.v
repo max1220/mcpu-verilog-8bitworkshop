@@ -27,7 +27,7 @@
 
 
 // This is the MCPU core.
-module MCPU_CORE(clk, reset, sense, irom_addr, irom_in, data_bus, reg_addr, dram_re, dram_we, x, y, regs_ext, regs_ext_re, regs_ext_we);
+module MCPU_CORE(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re, dram_we, alu_x, alu_y, regs_ext, regs_ext_re, regs_ext_we);
   // The bit-width of the entire CPU is parametric
   parameter DATA_WIDTH = 32;
   
@@ -48,7 +48,7 @@ module MCPU_CORE(clk, reset, sense, irom_addr, irom_in, data_bus, reg_addr, dram
   inout [DATA_WIDTH-1:0] data_bus;
   
   // CPU state
-  reg [DATA_WIDTH-1:0] cnt_pc;
+  output reg [DATA_WIDTH-1:0] cnt_pc;
   output reg [DATA_WIDTH-1:0] reg_addr;
   reg [DATA_WIDTH-1:0] srg_imm;
   reg [DATA_WIDTH-1:0] reg_alu_a, reg_alu_b;
@@ -62,8 +62,6 @@ module MCPU_CORE(clk, reset, sense, irom_addr, irom_in, data_bus, reg_addr, dram
   
   // ROM logic
   input [7:0] irom_in;
-  output [DATA_WIDTH-1:0] irom_addr;
-  assign irom_addr = cnt_pc;
   
   // instruction decoding
   wire op_is_imm = irom_in[`MCPU_OP_IS_IMM_BIT];
@@ -76,15 +74,15 @@ module MCPU_CORE(clk, reset, sense, irom_addr, irom_in, data_bus, reg_addr, dram
   
   // ALU
   input sense;
-  input [DATA_WIDTH-1:0] x;
-  input [DATA_WIDTH-1:0] y;
+  input [DATA_WIDTH-1:0] alu_x;
+  input [DATA_WIDTH-1:0] alu_y;
   wire alu_f_out;
   wire [DATA_WIDTH-1:0] alu_d_out;
   MCPU_ALU #(DATA_WIDTH) alu(
     .a(reg_alu_a),
     .b(reg_alu_b),
-    .x(x),
-    .y(y),
+    .x(alu_x),
+    .y(alu_y),
     .op(srg_imm),
     .sense(sense),
     .d_out(alu_d_out),
