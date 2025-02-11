@@ -28,7 +28,7 @@
 `define CTL_CONFIG_PAGE_FB_128x64_4BPP 3
 
 // This module implements a simple 8-bit video adapter, supporting multiple text and graphics modes.
-module MCPU_GPU(clk, hpos, vpos, display_on, rgb, data_bus, vram_addr, vram_re, vram_we);
+module mcpu_gpu(clk, hpos, vpos, display_on, rgb, data_bus, vram_addr, vram_re, vram_we);
   input clk;
   input display_on;
   input [8:0] hpos, vpos;
@@ -96,26 +96,33 @@ module MCPU_GPU(clk, hpos, vpos, display_on, rgb, data_bus, vram_addr, vram_re, 
   assign fb_128x128_1bpp_addr = {ctl_config[`CTL_CONFIG_PAGE_FB_128x128_1BPP], vpos[7:1], hpos[7:4]}; // 2KB/plane
   assign fb_128x64_4bpp_rgb = (hpos[2] ? vram_scan_value[7:4] : vram_scan_value[3:0]);
   assign fb_128x64_4bpp_addr = {ctl_config[`CTL_CONFIG_PAGE_FB_128x64_4BPP], vpos[7:1], hpos[7:3]}; // 4KB/page
-  
+  assign fb_ram_addr = mux_fb_ram_addr();
+  assign fb_rgb = mux_fb_rgb();
+
   // select rgb source based on display_on, ctl_config_mode, between border, fb_rgb, fb_char
   wire [3:0] border;
   assign border = vpos[0]^hpos[0] ? ctl_border[3:0] : ctl_border[7:4];
   assign rgb = display_on ? (ctl_config_mode ? fb_rgb : char_rgb) : border;
   
-  // multiplexers for fb_ram_addr, fb_rgb, char_rgb based on mode in ctl_config
-  always @(*) begin
+  // multiplexer for fb_ram_addr
+  function [12:0] mux_fb_ram_addr;
     case (ctl_config[`CTL_CONFIG_FB_MODE])
-      2'b00: fb_ram_addr = fb_128x128_4bpp_addr;
-      2'b01: fb_ram_addr = fb_256x256_1bpp_addr;
-      2'b10: fb_ram_addr = fb_128x128_1bpp_addr;
-      2'b11: fb_ram_addr = fb_128x64_4bpp_addr;
+      2'b00: mux_fb_ram_addr = fb_128x128_4bpp_addr;
+      2'b01: mux_fb_ram_addr = fb_256x256_1bpp_addr;
+      2'b10: mux_fb_ram_addr = fb_128x128_1bpp_addr;
+      2'b11: mux_fb_ram_addr = fb_128x64_4bpp_addr;
     endcase
+  endfunction
+
+  // multiplexer for fb_rgb
+  function [3:0] mux_fb_rgb;
     case (ctl_config[`CTL_CONFIG_FB_MODE])
-      2'b00: fb_rgb = fb_128x128_4bpp_rgb;
-      2'b01: fb_rgb = fb_256x256_1bpp_rgb;
-      2'b10: fb_rgb = fb_128x128_1bpp_rgb;
-      2'b11: fb_rgb = fb_128x64_4bpp_rgb;
+      2'b00: mux_fb_rgb = fb_128x128_4bpp_rgb;
+      2'b01: mux_fb_rgb = fb_256x256_1bpp_rgb;
+      2'b10: mux_fb_rgb = fb_128x128_1bpp_rgb;
+      2'b11: mux_fb_rgb = fb_128x64_4bpp_rgb;
     endcase
-  end
+  endfunction
+
 endmodule
 `endif

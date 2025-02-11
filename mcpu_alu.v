@@ -34,32 +34,8 @@
 `define MCPU_ALU_BOP_RSHIFT 2'b10
 `define MCPU_ALU_BOP_LSHIFT 2'b11
 
-// MCPU ALU B pre-operation module
-module MCPU_ALU_B(op, b_in, b_out);
-  parameter DATA_WIDTH = 32;
-  
-  input [DATA_WIDTH-1:0] op; // value from IMM register containing ALU op + IMM
-  input [DATA_WIDTH-1:0] b_in;
-  output [DATA_WIDTH-1:0] b_out;
-  
-  
-  // output of multiplexer can be inverted by INV bit
-  assign b_out = op[`MCPU_ALU_OP_INV_BIT] ? ~b_muxed : b_muxed;
-  
-  // multiplexer for b operation
-  wire [DATA_WIDTH-1:0] b_muxed;
-  always @(*) begin
-    case (op[`MCPU_ALU_BOP])
-      `MCPU_ALU_BOP_B: assign b_muxed = b_in;
-      `MCPU_ALU_BOP_IMM: assign b_muxed = { 7'b0, op[DATA_WIDTH-1:7] };
-      `MCPU_ALU_BOP_LSHIFT: assign b_muxed = b_in<<1;
-      `MCPU_ALU_BOP_RSHIFT: assign b_muxed = b_in>>1;
-    endcase
-  end
-endmodule
-
 // complete MCPU ALU module
-module MCPU_ALU(op, a, b, x, y, sense, d_out, f_out);
+module mcpu_alu(op, a, b, x, y, sense, d_out, f_out);
   parameter DATA_WIDTH = 32;
   
   input [DATA_WIDTH-1:0] a,b,x,y,op;
@@ -67,40 +43,65 @@ module MCPU_ALU(op, a, b, x, y, sense, d_out, f_out);
   output [DATA_WIDTH-1:0] d_out;
   output f_out;
   wire [DATA_WIDTH-1:0] b_out;
-  wire f;
-  assign f_out = op[`MCPU_ALU_OP_INV_BIT] ? ~f : f;
+  assign f_out = op[`MCPU_ALU_OP_INV_BIT] ? ~mux_f() : mux_f();
+  assign d_out = mux_d();
 
   // create B pre-ALU instance
-  MCPU_ALU_B #(DATA_WIDTH) alu_b(
+  mcpu_alu_b #(DATA_WIDTH) alu_b(
     .op(op),
     .b_in(b),
     .b_out(b_out)
   );
 
-  always @(*) begin
-    // ALU data output multiplexer
+  // ALU data output multiplexer
+  function [DATA_WIDTH-1:0] mux_d;
     case (op[`MCPU_ALU_OP])
-      `MCPU_ALU_OP_ADD: assign d_out = op[`MCPU_ALU_OP_CIN_BIT] ? (a + b_out + 1) : (a + b_out);
-      `MCPU_ALU_OP_AND: assign d_out = a & b_out;
-      `MCPU_ALU_OP_OR: assign d_out = a | b_out;
-      `MCPU_ALU_OP_XOR: assign d_out = a ^ b_out;
-      `MCPU_ALU_OP_A: assign d_out = a;
-      `MCPU_ALU_OP_B: assign d_out = b_out;
-      `MCPU_ALU_OP_X: assign d_out = x;
-      `MCPU_ALU_OP_Y: assign d_out = y;
+      `MCPU_ALU_OP_ADD: mux_d = op[`MCPU_ALU_OP_CIN_BIT] ? (a + b_out + 1) : (a + b_out);
+      `MCPU_ALU_OP_AND: mux_d = a & b_out;
+      `MCPU_ALU_OP_OR: mux_d = a | b_out;
+      `MCPU_ALU_OP_XOR: mux_d = a ^ b_out;
+      `MCPU_ALU_OP_A: mux_d = a;
+      `MCPU_ALU_OP_B: mux_d = b_out;
+      `MCPU_ALU_OP_X: mux_d = x;
+      `MCPU_ALU_OP_Y: mux_d = y;
     endcase
-    // ALU flag output multiplexer
+  endfunction
+
+  // ALU flag multiplexer
+  function mux_f;
     case (op[`MCPU_ALU_TEST])
-      `MCPU_ALU_TEST_A_EQ_Z: assign f = a == 0;
-      `MCPU_ALU_TEST_B_EQ_Z: assign f = b == 0;
-      `MCPU_ALU_TEST_A_GT_B: assign f = a > b;
-      `MCPU_ALU_TEST_A_EQ_B: assign f = a == b;
-      `MCPU_ALU_TEST_A_LT_B: assign f = a < b;
-      `MCPU_ALU_TEST_B_LO: assign f = b[0];
-      `MCPU_ALU_TEST_B_HI: assign f = b[DATA_WIDTH-1];
-      `MCPU_ALU_TEST_SENSE: assign f = sense;
+      `MCPU_ALU_TEST_A_EQ_Z: mux_f = a == 0;
+      `MCPU_ALU_TEST_B_EQ_Z: mux_f = b == 0;
+      `MCPU_ALU_TEST_A_GT_B: mux_f = a > b;
+      `MCPU_ALU_TEST_A_EQ_B: mux_f = a == b;
+      `MCPU_ALU_TEST_A_LT_B: mux_f = a < b;
+      `MCPU_ALU_TEST_B_LO: mux_f = b[0];
+      `MCPU_ALU_TEST_B_HI: mux_f = b[DATA_WIDTH-1];
+      `MCPU_ALU_TEST_SENSE: mux_f = sense;
     endcase
-  end
+  endfunction
+endmodule
+
+// MCPU ALU B pre-operation module
+module mcpu_alu_b(op, b_in, b_out);
+  parameter DATA_WIDTH = 32;
+  
+  input [DATA_WIDTH-1:0] op; // value from IMM register containing ALU op + IMM
+  input [DATA_WIDTH-1:0] b_in;
+  output [DATA_WIDTH-1:0] b_out;
+  
+  // output of multiplexer can be inverted by INV bit
+  assign b_out = op[`MCPU_ALU_OP_INV_BIT] ? ~mux_b() : mux_b();
+  
+  // multiplexer for b operation
+  function [DATA_WIDTH-1:0] mux_b;
+    case (op[`MCPU_ALU_BOP])
+      `MCPU_ALU_BOP_B: mux_b = b_in;
+      `MCPU_ALU_BOP_IMM: mux_b = { 7'b0, op[DATA_WIDTH-1:7] };
+      `MCPU_ALU_BOP_LSHIFT: mux_b = b_in<<1;
+      `MCPU_ALU_BOP_RSHIFT: mux_b = b_in>>1;
+    endcase
+  endfunction
 endmodule
 
 `endif

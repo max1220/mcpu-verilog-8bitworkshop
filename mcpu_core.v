@@ -27,7 +27,7 @@
 
 
 // This is the MCPU core.
-module MCPU_CORE(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re, dram_we, alu_x, alu_y, regs_ext, regs_ext_re, regs_ext_we);
+module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re, dram_we, alu_x, alu_y, regs_ext, regs_ext_re, regs_ext_we);
   // The bit-width of the entire CPU is parametric
   parameter DATA_WIDTH = 32;
   
@@ -78,7 +78,7 @@ module MCPU_CORE(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
   input [DATA_WIDTH-1:0] alu_y;
   wire alu_f_out;
   wire [DATA_WIDTH-1:0] alu_d_out;
-  MCPU_ALU #(DATA_WIDTH) alu(
+  mcpu_alu #(DATA_WIDTH) alu(
     .a(reg_alu_a),
     .b(reg_alu_b),
     .x(alu_x),
@@ -90,18 +90,19 @@ module MCPU_CORE(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
   );
   
   // operation source value multiplexer
-  always @(*) begin
+  assign data_bus = mux_src();
+  function [DATA_WIDTH-1:0] mux_src;
     case (op_src)
-      `MCPU_OP_SRC_PC: assign data_bus = cnt_pc;
-      `MCPU_OP_SRC_ADDR: assign data_bus = reg_addr;
-      `MCPU_OP_SRC_RAM: assign data_bus = {DATA_WIDTH{1'bz}};
-      `MCPU_OP_SRC_IMM: assign data_bus = srg_imm;
-      `MCPU_OP_SRC_ALU: assign data_bus = alu_d_out;
-      `MCPU_OP_SRC_I: assign data_bus = regs_ext ? {DATA_WIDTH{1'bz}} : reg_i;
-      `MCPU_OP_SRC_J: assign data_bus = regs_ext ? {DATA_WIDTH{1'bz}} : reg_j;
-      `MCPU_OP_SRC_K: assign data_bus = regs_ext ? {DATA_WIDTH{1'bz}} : reg_k;
+      `MCPU_OP_SRC_PC: mux_src = cnt_pc;
+      `MCPU_OP_SRC_ADDR: mux_src = reg_addr;
+      `MCPU_OP_SRC_RAM: mux_src = {DATA_WIDTH{1'bz}};
+      `MCPU_OP_SRC_IMM: mux_src = srg_imm;
+      `MCPU_OP_SRC_ALU: mux_src = alu_d_out;
+      `MCPU_OP_SRC_I: mux_src = regs_ext ? {DATA_WIDTH{1'bz}} : reg_i;
+      `MCPU_OP_SRC_J: mux_src = regs_ext ? {DATA_WIDTH{1'bz}} : reg_j;
+      `MCPU_OP_SRC_K: mux_src = regs_ext ? {DATA_WIDTH{1'bz}} : reg_k;
     endcase
-  end
+  endfunction
   
   // clocked CPU step
   always @(posedge clk) begin
@@ -118,8 +119,11 @@ module MCPU_CORE(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
       last_imm <= 0;
     end else begin
       // normal CPU operation
+      if (irom_in == 0)
+        $finish();
       cnt_pc <= cnt_pc + 1;
       if (op_is_imm) begin
+        $display("IMM instruction: 0x%h", op_imm);
         // is immediate value instruction
         if (last_imm) begin
           srg_imm <= {srg_imm[DATA_WIDTH-8:0], op_imm};
@@ -128,8 +132,12 @@ module MCPU_CORE(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
         end
         last_imm <= 1;
       end else begin
-        // is mov/cmov instruction
+        // is mov/cmov instruction, write target register
         last_imm <= 0;
+        if (op_is_cond)
+          $display("CMOV instruction: %d = %d(0x%h) Run: %b", op_dst, op_src, data_bus, should_execute);
+        else
+          $display("MOV instruction: %d = %d(0x%h)", op_dst, op_src, data_bus);
         if (should_execute) begin
           case (op_dst)
             `MCPU_OP_DST_PC: cnt_pc <= data_bus;

@@ -6,7 +6,7 @@
 `include "font_cp437_8x8.v"
 `include "mcpu_gpu.v"
 
-module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
+module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   parameter DATA_WIDTH = 16;
   
   // data bus that connects memory and external register to the MCPU core
@@ -29,7 +29,7 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   wire [7:0] irom_out0, irom_out1; // value provided to CPU from ROM
   
   wire dram_we, dram_re; // read/write enables for access using the DRAM interface
-  MCPU_DRAM #(DATA_WIDTH, 14) mcpu_dram(
+  mcpu_dram #(DATA_WIDTH, 14) mcpu_dram(
     .clk(clk),
     .reset(reset),
     .dram_addr(data_bus_addr[13:0]),
@@ -38,7 +38,7 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
     .dram_re(dram_re)
   );
   
-  MCPU_IROM #(14) mcpu_irom(
+  mcpu_irom #(14) mcpu_irom(
     .irom_addr0(cnt_pc[13:0]),
     .irom_out0(irom_out0),
     .irom_addr1(data_bus_addr[13:0]),
@@ -54,7 +54,7 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   wire regs_ext = 0; // set to 1 to read value for reg_i, reg_j, reg_k, from data_bus
   wire [2:0] regs_ext_we; // 3 write-enable signals for external I,J,K
   wire [2:0] regs_ext_re; // 3 read-enable signals for external I,J,K
-  MCPU_CORE #(DATA_WIDTH) mcpu(
+  mcpu_core #(DATA_WIDTH) core(
     .clk(clk),
     .reset(reset),
     .sense(sense),
@@ -74,7 +74,7 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   // create video signal generator
   wire display_on;
   wire [8:0] vpos, hpos;
-  hvsync_generator hvsync_gen(
+  hvsync_generator hvsync(
     .clk(clk),
     .reset(reset),
     .hsync(hsync),
@@ -88,7 +88,7 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   wire vram_re, vram_we;
   assign vram_re = 0;
   assign vram_we = 0;
-  MCPU_GPU mcpu_gpu(
+  mcpu_gpu gpu(
     .clk(clk),
     .hpos(hpos),
     .vpos(vpos),
@@ -99,5 +99,9 @@ module top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
     .vram_we(vram_we),
     .vram_re(vram_re)
   );
+
+  initial begin
+    $display("Verilog MCPU started!");
+  end
   
 endmodule

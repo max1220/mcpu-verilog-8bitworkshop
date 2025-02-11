@@ -2,7 +2,7 @@
 `define MCPU_DRAM_H
 
 // Simple RAM implementation for MCPU
-module MCPU_DRAM(clk, reset, dram_addr, data_bus, dram_we, dram_re);
+module mcpu_dram(clk, reset, dram_addr, data_bus, dram_we, dram_re);
   parameter DRAM_DATA_BITS = 16;
   parameter DRAM_ADDR_BITS = 14;
 
