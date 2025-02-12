@@ -39,24 +39,25 @@ module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode, data_b
   // addresses are padded by the MCPU_MEMORY module to DATA_WIDTH
   wire [15:0] cnt_pc; // ROM address output from CPU(CNT_PC)
   wire [7:0] irom_out0, irom_out1; // value provided to CPU from ROM
-  
   wire dram_we, dram_re; // read/write enables for access using the DRAM interface
   mcpu_dram #(DATA_WIDTH, 14) mcpu_dram(
     .clk(clk),
     .reset(reset),
     .dram_addr(data_bus_addr[13:0]),
     .data_bus(data_bus),
-    .dram_we(dram_we),
-    .dram_re(dram_re)
+    .dram_we(dram_we & (~data_bus_addr[14] | ~data_bus_addr[15])),
+    .dram_re(dram_re & (~data_bus_addr[14] | ~data_bus_addr[15]))
   );
-  
+
   mcpu_irom #(14) mcpu_irom(
     .irom_addr0(cnt_pc[13:0]),
     .irom_out0(irom_out0),
     .irom_addr1(data_bus_addr[13:0]),
     .irom_out1(irom_out1)
   );
-  
+  // read from IROM instead of DRAM when address starts with 0b01
+  assign data_bus = (dram_re & (data_bus_addr[14] | ~data_bus_addr[15])) ? {{DATA_WIDTH-8{1'b0}}, irom_out1} : {DATA_WIDTH{1'bz}};
+
   // create CPU core
   wire sense; // SENSE special ALU input(can "wait for" signal level on this input)
   wire [DATA_WIDTH-1:0] alu_x, alu_y; // ALU X,Y extra inputs
@@ -98,15 +99,17 @@ module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode, data_b
   
   // create GPU instance
   wire vram_re, vram_we;
-  assign vram_re = 0;
-  assign vram_we = 0;
+  wire [7:0] vram_bus;
+  assign vram_re = dram_re & (~data_bus_addr[14] | data_bus_addr[15]); // read/write from VRAM instead of DRAM when address starts with 0b10
+  assign vram_we = dram_we & (~data_bus_addr[14] | data_bus_addr[15]);
+  assign data_bus = vram_re ? {{DATA_WIDTH-8{1'b0}}, vram_bus[7:0]} : {DATA_WIDTH{1'bz}};
   mcpu_gpu gpu(
     .clk(clk),
     .hpos(hpos),
     .vpos(vpos),
     .display_on(display_on),
     .rgb(rgb),
-    .data_bus(data_bus[7:0]),
+    .data_bus(vram_bus),
     .vram_addr(data_bus_addr[12:0]),
     .vram_we(vram_we),
     .vram_re(vram_re)
