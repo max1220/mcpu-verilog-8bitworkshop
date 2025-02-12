@@ -25,34 +25,27 @@
 `define MCPU_OP_DST_J 3'b110
 `define MCPU_OP_DST_K 3'b111
 
+`define MCPU_SILENT 1
+
 
 // This is the MCPU core.
-module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re, dram_we, alu_x, alu_y, regs_ext, regs_ext_re, regs_ext_we);
+module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_in, data_out, reg_addr, dram_re, dram_we, alu_x, alu_y, reg_i, reg_j, reg_k);
   // The bit-width of the entire CPU is parametric
   parameter DATA_WIDTH = 32;
   
   // clock/reset inputs
   input clk, reset;
-
-  // registers I,J,K can be switched to external
-  input regs_ext;
-  output [2:0] regs_ext_re, regs_ext_we;
-  assign regs_ext_re[0] = should_execute & regs_ext & (op_src == `MCPU_OP_SRC_I);
-  assign regs_ext_re[1] = should_execute & regs_ext & (op_src == `MCPU_OP_SRC_J);
-  assign regs_ext_re[2] = should_execute & regs_ext & (op_src == `MCPU_OP_SRC_K);
-  assign regs_ext_we[0] = should_execute & regs_ext & (op_dst == `MCPU_OP_DST_I);
-  assign regs_ext_we[1] = should_execute & regs_ext & (op_dst == `MCPU_OP_DST_J);
-  assign regs_ext_we[2] = should_execute & regs_ext & (op_dst == `MCPU_OP_DST_K);
   
   // main data bus
-  inout [DATA_WIDTH-1:0] data_bus;
+  input [DATA_WIDTH-1:0] data_in;
+  output [DATA_WIDTH-1:0] data_out;
   
   // CPU state
   output reg [DATA_WIDTH-1:0] cnt_pc;
   output reg [DATA_WIDTH-1:0] reg_addr;
   reg [DATA_WIDTH-1:0] srg_imm;
   reg [DATA_WIDTH-1:0] reg_alu_a, reg_alu_b;
-  reg [DATA_WIDTH-1:0] reg_i,reg_j,reg_k;
+  output reg [DATA_WIDTH-1:0] reg_i, reg_j, reg_k;
   reg last_imm;
 
   // RAM logic
@@ -90,17 +83,17 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
   );
   
   // operation source value multiplexer
-  assign data_bus = mux_src();
+  assign data_out = mux_src();
   function [DATA_WIDTH-1:0] mux_src;
     case (op_src)
       `MCPU_OP_SRC_PC: mux_src = cnt_pc;
       `MCPU_OP_SRC_ADDR: mux_src = reg_addr;
-      `MCPU_OP_SRC_RAM: mux_src = {DATA_WIDTH{1'bz}};
+      `MCPU_OP_SRC_RAM: mux_src = data_in;
       `MCPU_OP_SRC_IMM: mux_src = srg_imm;
       `MCPU_OP_SRC_ALU: mux_src = alu_d_out;
-      `MCPU_OP_SRC_I: mux_src = regs_ext ? {DATA_WIDTH{1'bz}} : reg_i;
-      `MCPU_OP_SRC_J: mux_src = regs_ext ? {DATA_WIDTH{1'bz}} : reg_j;
-      `MCPU_OP_SRC_K: mux_src = regs_ext ? {DATA_WIDTH{1'bz}} : reg_k;
+      `MCPU_OP_SRC_I: mux_src = reg_i;
+      `MCPU_OP_SRC_J: mux_src = reg_j;
+      `MCPU_OP_SRC_K: mux_src = reg_k;
     endcase
   endfunction
   
@@ -123,7 +116,7 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
         $finish();
       cnt_pc <= cnt_pc + 1;
       if (op_is_imm) begin
-        `ifndef __8BITWORKSHOP__ $display("IMM instruction: 0x%h", op_imm); `endif
+        `ifndef MCPU_SILENT $display("IMM instruction: 0x%h", op_imm); `endif
         // is immediate value instruction
         if (last_imm) begin
           srg_imm <= {srg_imm[DATA_WIDTH-8:0], op_imm};
@@ -134,22 +127,22 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
       end else begin
         // is mov/cmov instruction, write target register
         last_imm <= 0;
-        `ifndef __8BITWORKSHOP__ 
+        `ifndef MCPU_SILENT 
         if (op_is_cond)
-          $display("CMOV instruction: %d = %d(0x%h) Run: %b", op_dst, op_src, data_bus, should_execute);
+          $display("CMOV instruction: %d = %d(0x%h) Run: %b", op_dst, op_src, data_out, should_execute);
         else
-          $display("MOV instruction: %d = %d(0x%h)", op_dst, op_src, data_bus);
+          $display("MOV instruction: %d = %d(0x%h)", op_dst, op_src, data_out);
         `endif
         if (should_execute) begin
           case (op_dst)
-            `MCPU_OP_DST_PC: cnt_pc <= data_bus;
-            `MCPU_OP_DST_ADDR: reg_addr <= data_bus;
+            `MCPU_OP_DST_PC: cnt_pc <= data_out;
+            `MCPU_OP_DST_ADDR: reg_addr <= data_out;
             `MCPU_OP_DST_RAM: ;
-            `MCPU_OP_DST_ALU_A: reg_alu_a <= data_bus;
-            `MCPU_OP_DST_ALU_B: reg_alu_b <= data_bus;
-            `MCPU_OP_DST_I: reg_i <= data_bus;
-            `MCPU_OP_DST_J: reg_j <= data_bus;
-            `MCPU_OP_DST_K: reg_k <= data_bus;
+            `MCPU_OP_DST_ALU_A: reg_alu_a <= data_out;
+            `MCPU_OP_DST_ALU_B: reg_alu_b <= data_out;
+            `MCPU_OP_DST_I: reg_i <= data_out;
+            `MCPU_OP_DST_J: reg_j <= data_out;
+            `MCPU_OP_DST_K: reg_k <= data_out;
           endcase
         end
       end

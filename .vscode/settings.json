@@ -1,0 +1,9 @@
+{
+	"Lua.diagnostics.globals": [
+		"list_signals",
+		"get_signal",
+		"set_signal",
+		"eval",
+		"is_finished"
+	]
+}

@@ -28,24 +28,26 @@
 `define CTL_CONFIG_PAGE_FB_128x64_4BPP 3
 
 // This module implements a simple 8-bit video adapter, supporting multiple text and graphics modes.
-module mcpu_gpu(clk, hpos, vpos, display_on, rgb, data_bus, vram_addr, vram_re, vram_we);
+module mcpu_gpu(clk, hpos, vpos, display_on, rgb, data_in, data_out, vram_addr, vram_we);
   input clk;
   input display_on;
   input [8:0] hpos, vpos;
   input [12:0] vram_addr;
-  input vram_re, vram_we;
-  inout [7:0] data_bus;
+  input vram_we;
+  input [7:0] data_in;
+  output [7:0] data_out;
   output [3:0] rgb;
   
   // 8KB VRAM
   reg [7:0] vram[0:8191];
   
-  // VRAM write/read on the data_bus
-  assign data_bus = vram_re ? vram[vram_addr] : {8{1'bz}};
+  // VRAM read on the data bus
+  assign data_out = vram[vram_addr];
+
+  // VRAM write on the data_bus
   always @(posedge clk) begin
-      if (vram_we) begin
-        vram[vram_addr] <= data_bus;
-      end
+      if (vram_we)
+        vram[vram_addr] <= data_in;
   end
   
   // special purpose registers in VRAM
