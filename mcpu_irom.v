@@ -13,7 +13,7 @@ module mcpu_irom(irom_addr0, irom_out0, irom_addr1, irom_out1);
   
   initial begin
     `ifdef EXT_INLINE_ASM
-      `include "irom_8bitworkshop.v"
+      `include "mcpu_irom_8bitworkshop.v"
     `else
       $readmemh("irom.hex", irom);
       $display("IROM image from hex dump: 0x%2x 0x%2x 0x%2x (...)", irom[0], irom[1], irom[2]);
