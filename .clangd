@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [ "-I/usr/share/verilator/include", "-Iobj_dir", "-I/usr/include/lua5.1/" ]

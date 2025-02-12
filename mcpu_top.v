@@ -6,7 +6,7 @@
 `include "font_cp437_8x8.v"
 `include "mcpu_gpu.v"
 
-module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
+module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode, data_bus_out);
   parameter DATA_WIDTH = 16;
   
   // data bus that connects memory and external register to the MCPU core
@@ -20,6 +20,10 @@ module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   input [7:0] keycode;
   output hsync, vsync;
   output [3:0] rgb;
+
+  // for debugging
+  output [DATA_WIDTH-1:0] data_bus_out;
+  assign data_bus_out = data_bus;
   
   // create memory for CPU core(IROM/DRAM)
   // 14-bit IROM address(16384 bytes)
@@ -99,9 +103,4 @@ module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
     .vram_we(vram_we),
     .vram_re(vram_re)
   );
-
-  initial begin
-    $display("Verilog MCPU started!");
-  end
-  
 endmodule

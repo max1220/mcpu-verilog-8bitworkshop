@@ -15,41 +15,12 @@ module mcpu_irom(irom_addr0, irom_out0, irom_addr1, irom_out1);
     `ifdef EXT_INLINE_ASM
     irom = '{
       __asm
-        ; This program fills memory from 0x800 to 0xf7f with the address of th memory.
-        ; The screen is memory-mapped there(128x120 pixels, scaled 2x to screen).
-        .arch mcpu_asm
-        .org 0x0000
-        .len 0x4000
-        start:
-          imov 0x800 ALU_A ; start value
-          imov 0xf7f ALU_B ; stop value
-          imov loop_start I ; loop start
-          imov loop_end J ; loop exit
-        loop_start:
-          ; set k = alu_a
-          ALU A
-          MOV ALU K
-          ; set ram[k] = 0x71247
-          mov K ADDR
-          ;imov 0x71247 RAM
-          mov k ram
-          ; set k,alu_a = a+1
-          alu IMM C ADD
-          mov ALU K
-          mov K ALU_A
-          ; conditional branch to loop_end if a == b
-          test A_EQ_B
-          cmov J PC
-          ; continue loop
-          mov i PC
-        loop_end:
-          halt
+        `include "irom.asm"
       __endasm
     };
     `else
-      $display("Reading IROM image from hex dump...");
       $readmemh("irom.hex", irom);
-      $display("Read IROM image: 0x%2x 0x%2x 0x%2x (...)", irom[0], irom[1], irom[2]);
+      $display("IROM image from hex dump: 0x%2x 0x%2x 0x%2x (...)", irom[0], irom[1], irom[2]);
     `endif
   end
 endmodule

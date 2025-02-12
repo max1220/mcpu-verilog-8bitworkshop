@@ -123,7 +123,7 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
         $finish();
       cnt_pc <= cnt_pc + 1;
       if (op_is_imm) begin
-        $display("IMM instruction: 0x%h", op_imm);
+        `ifndef __8BITWORKSHOP__ $display("IMM instruction: 0x%h", op_imm); `endif
         // is immediate value instruction
         if (last_imm) begin
           srg_imm <= {srg_imm[DATA_WIDTH-8:0], op_imm};
@@ -134,10 +134,12 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_bus, reg_addr, dram_re
       end else begin
         // is mov/cmov instruction, write target register
         last_imm <= 0;
+        `ifndef __8BITWORKSHOP__ 
         if (op_is_cond)
           $display("CMOV instruction: %d = %d(0x%h) Run: %b", op_dst, op_src, data_bus, should_execute);
         else
           $display("MOV instruction: %d = %d(0x%h)", op_dst, op_src, data_bus);
+        `endif
         if (should_execute) begin
           case (op_dst)
             `MCPU_OP_DST_PC: cnt_pc <= data_bus;
