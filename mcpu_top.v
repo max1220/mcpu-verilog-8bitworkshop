@@ -5,6 +5,14 @@
 `include "mcpu_core.v"
 `include "font_cp437_8x8.v"
 `include "mcpu_gpu.v"
+/*
+!!! THIS COMMENT IS IMPORTANT! !!!
+
+These files are included in other places, but if you delete them, the 8bitworkshop IDE won't find the files.
+
+`include "mcpu_irom_8bitworkshop.v"
+`include "mcpu_asm.json"
+*/
 
 module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode, data_bus_out);
   parameter DATA_WIDTH = 16;
