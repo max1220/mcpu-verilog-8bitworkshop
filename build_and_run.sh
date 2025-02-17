@@ -1,1 +1,1 @@
-/home/max/veri_easy/build_and_run.sh
+veri_easy/build_and_run.sh

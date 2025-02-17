@@ -1,0 +1,6 @@
+[submodule "mcpu_nanoasm"]
+	path = mcpu_nanoasm
+	url = https://github.com/max1220/mcpu_nanoasm
+[submodule "veri_easy"]
+	path = veri_easy
+	url = https://github.com/max1220/veri_easy
