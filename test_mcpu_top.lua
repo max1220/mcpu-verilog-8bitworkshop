@@ -1,11 +1,4 @@
-local bit = require("bit32")
-
-print("Lua Counter test start")
---local max_instr = 100
-local max_instr = math.huge
 local signals = list_signals()
-for k,v in pairs(signals.inputs) do print("Lua input", k,v) end
-for k,v in pairs(signals.outputs) do print("Lua output", k,v) end
 
 function get(name)
 	assert(signals.outputs[name], "get: signal " .. tostring(name) .. " not found!")
@@ -24,7 +17,6 @@ function clk()
 end
 
 function reset()
-	print("Lua Reset")
 	eval()
 	set("reset", 1)
 	set("clk", 0)
@@ -34,15 +26,12 @@ function reset()
 	clk()
 	set("reset", 0)
 	eval()
-	print("Lua Reset complete!")
 end
-local function handle_frame(rows)
-	local h = #rows
-	local w = #rows[1]
-	print("Video frame: ", w,h, "-------------------")
-	for y=1, h, 2 do
+function handle_frame(rows)
+	for y=1, #rows, 2 do
 		local row = rows[y]
 		local nrow = rows[y+1] or row
+		local row_str = {}
 		for x=1, #row do
 			local px_a = row[x]
 			local col_a = "\027[" .. 30+px_a .. "m"
@@ -54,15 +43,14 @@ local function handle_frame(rows)
 			if px_b > 7 then
 				col_b = "\027[" .. 100+px_b-8 .. "m"
 			end
-			io.write(col_a..col_b.."▀")
+			table.insert(row_str, col_a..col_b.."▀")
 		end
-		io.write("\027[0m\n")
+		io.write(table.concat(row_str, "") .. "\027[0m\n")
 	end
 	io.flush()
 end
 
 local i = 0
-print("Lua running model")
 reset()
 local rows, row = {}, {}
 local last_hsync, last_vsync = false, false
@@ -73,7 +61,7 @@ while not is_finished() do
 		row = {}
 	end
 	if vsync and not last_vsync then
-		print("vsync at:", i)
+		print("video frame at:", i, "----------------")
 		handle_frame(rows)
 		rows = {}
 	end
@@ -82,7 +70,5 @@ while not is_finished() do
 	end
 	last_hsync, last_vsync = hsync, vsync
 	clk()
-	if i == max_instr then break end
 	i = i + 1
 end
-print("Lua end")

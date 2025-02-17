@@ -66,7 +66,7 @@ module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
   assign alu_x = {{DATA_WIDTH-8{1'0}}, vpaddle[3:0], hpaddle[3:0]}; // X input is gampad input 
   assign alu_y = {{DATA_WIDTH-8{1'0}}, keycode}; // Y input is keyboard input keycode
   assign cpu_data_in = mux_data_bus();
-  mcpu_core #(DATA_WIDTH) core(
+  mcpu_core #(DATA_WIDTH, 4) core(
     .clk(clk),
     .reset(reset),
     .sense(sense),
@@ -96,7 +96,7 @@ module mcpu_top(clk, reset, hsync, vsync, rgb, hpaddle, vpaddle, keycode);
     .hpos(hpos),
     .vpos(vpos)
   );
-  
+
   // create GPU instance
   wire vram_we, vram_re;
   wire [7:0] vram_out;

@@ -37,8 +37,10 @@
 // complete MCPU ALU module
 module mcpu_alu(op, a, b, x, y, sense, d_out, f_out);
   parameter DATA_WIDTH = 32;
+  parameter OP_WIDTH = 42;
   
-  input [DATA_WIDTH-1:0] a,b,x,y,op;
+  input [DATA_WIDTH-1:0] a,b,x,y;
+  input [OP_WIDTH-1:0] op;
   input sense;
   output [DATA_WIDTH-1:0] d_out;
   output f_out;
@@ -47,7 +49,7 @@ module mcpu_alu(op, a, b, x, y, sense, d_out, f_out);
   assign d_out = mux_d();
 
   // create B pre-ALU instance
-  mcpu_alu_b #(DATA_WIDTH) alu_b(
+  mcpu_alu_b #(DATA_WIDTH, OP_WIDTH) alu_b(
     .op(op),
     .b_in(b),
     .b_out(b_out)
@@ -85,8 +87,9 @@ endmodule
 // MCPU ALU B pre-operation module
 module mcpu_alu_b(op, b_in, b_out);
   parameter DATA_WIDTH = 32;
-  
-  input [DATA_WIDTH-1:0] op; // value from IMM register containing ALU op + IMM
+  parameter OP_WIDTH = 42;
+
+  input [OP_WIDTH-1:0] op; // value from IMM register containing ALU op + IMM
   input [DATA_WIDTH-1:0] b_in;
   output [DATA_WIDTH-1:0] b_out;
   
@@ -97,7 +100,7 @@ module mcpu_alu_b(op, b_in, b_out);
   function [DATA_WIDTH-1:0] mux_b;
     case (op[`MCPU_ALU_BOP])
       `MCPU_ALU_BOP_B: mux_b = b_in;
-      `MCPU_ALU_BOP_IMM: mux_b = { 7'b0, op[DATA_WIDTH-1:7] };
+      `MCPU_ALU_BOP_IMM: mux_b = { op[OP_WIDTH-1:7][DATA_WIDTH-1:0] };
       `MCPU_ALU_BOP_LSHIFT: mux_b = b_in<<1;
       `MCPU_ALU_BOP_RSHIFT: mux_b = b_in>>1;
     endcase

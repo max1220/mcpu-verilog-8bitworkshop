@@ -32,7 +32,15 @@
 module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_in, data_out, reg_addr, dram_re, dram_we, alu_x, alu_y, reg_i, reg_j, reg_k);
   // The bit-width of the entire CPU is parametric
   parameter DATA_WIDTH = 32;
-  
+  // Number of 7-bit IMM shift-register stages, e.g.:
+  // 6 IMM stages for a 32-bit core, so we can fit: [32-bit IMM] [ALU instruction] into the SRG_IMM
+  //parameter IMM_STAGES = $ceil((DATA_WIDTH+7)/7); 
+  parameter IMM_STAGES = 6;
+
+  initial begin
+    `ifndef MCPU_SILENT $display("MCPU core init! DATA_WIDTH: %d bits, IMM_STAGES:%d(%d bits)", DATA_WIDTH, IMM_STAGES, IMM_STAGES*7); `endif
+  end
+
   // clock/reset inputs
   input clk, reset;
   
@@ -43,7 +51,7 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_in, data_out, reg_addr
   // CPU state
   output reg [DATA_WIDTH-1:0] cnt_pc;
   output reg [DATA_WIDTH-1:0] reg_addr;
-  reg [DATA_WIDTH-1:0] srg_imm;
+  reg [(IMM_STAGES*7)-1:0] srg_imm;
   reg [DATA_WIDTH-1:0] reg_alu_a, reg_alu_b;
   output reg [DATA_WIDTH-1:0] reg_i, reg_j, reg_k;
   reg last_imm;
@@ -71,7 +79,7 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_in, data_out, reg_addr
   input [DATA_WIDTH-1:0] alu_y;
   wire alu_f_out;
   wire [DATA_WIDTH-1:0] alu_d_out;
-  mcpu_alu #(DATA_WIDTH) alu(
+  mcpu_alu #(DATA_WIDTH, IMM_STAGES*7) alu(
     .a(reg_alu_a),
     .b(reg_alu_b),
     .x(alu_x),
@@ -89,7 +97,7 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_in, data_out, reg_addr
       `MCPU_OP_SRC_PC: mux_src = cnt_pc;
       `MCPU_OP_SRC_ADDR: mux_src = reg_addr;
       `MCPU_OP_SRC_RAM: mux_src = data_in;
-      `MCPU_OP_SRC_IMM: mux_src = srg_imm;
+      `MCPU_OP_SRC_IMM: mux_src = srg_imm[DATA_WIDTH-1:0];
       `MCPU_OP_SRC_ALU: mux_src = alu_d_out;
       `MCPU_OP_SRC_I: mux_src = reg_i;
       `MCPU_OP_SRC_J: mux_src = reg_j;
@@ -112,27 +120,55 @@ module mcpu_core(clk, reset, sense, cnt_pc, irom_in, data_in, data_out, reg_addr
       last_imm <= 0;
     end else begin
       // normal CPU operation
-      if (irom_in == 0)
-        $finish();
+      //if (irom_in == 0)
+      //  $finish();
       cnt_pc <= cnt_pc + 1;
       if (op_is_imm) begin
-        `ifndef MCPU_SILENT $display("IMM instruction: 0x%h", op_imm); `endif
+        `ifndef MCPU_SILENT $display("0x%x:  IMM(0x%x)", cnt_pc, op_imm); `endif
         // is immediate value instruction
         if (last_imm) begin
-          srg_imm <= {srg_imm[DATA_WIDTH-8:0], op_imm};
+          srg_imm <= {srg_imm[(IMM_STAGES*7)-8:0], op_imm};
         end else begin
-          srg_imm <= {{DATA_WIDTH-7{1'0}},op_imm};
+          srg_imm <= {{(IMM_STAGES*7)-7{1'0}},op_imm};
         end
         last_imm <= 1;
       end else begin
         // is mov/cmov instruction, write target register
         last_imm <= 0;
         `ifndef MCPU_SILENT 
-        if (op_is_cond)
-          $display("CMOV instruction: %d = %d(0x%h) Run: %b", op_dst, op_src, data_out, should_execute);
-        else
-          $display("MOV instruction: %d = %d(0x%h)", op_dst, op_src, data_out);
+          if (irom_in !== 8'b0) begin
+            if (op_is_cond) begin
+              $write("0x%x: CMOV(0x%x)", cnt_pc, irom_in);
+            end else begin
+              $write("0x%x:  MOV(0x%x)", cnt_pc, irom_in);
+            end
+            case (op_src)
+              `MCPU_OP_SRC_PC:   $write("  src:   PC(0x%x)", cnt_pc);
+              `MCPU_OP_SRC_ADDR: $write("  src: ADDR(0x%x)", reg_addr);
+              `MCPU_OP_SRC_RAM:  $write("  src:  RAM[0x%x](0x%x)", reg_addr, data_in);
+              `MCPU_OP_SRC_IMM:  $write("  src:  IMM(0x%x)", srg_imm);
+              `MCPU_OP_SRC_ALU:  $write("  src:  ALU(0x%x)", alu_d_out);
+              `MCPU_OP_SRC_I:    $write("  src:    I(0x%x)", reg_i);
+              `MCPU_OP_SRC_J:    $write("  src:    J(0x%x)", reg_j);
+              `MCPU_OP_SRC_K:    $write("  src:    K(0x%x)", reg_k);
+            endcase
+            case (op_dst)
+              `MCPU_OP_DST_PC:    $write("  dst: PC");
+              `MCPU_OP_DST_ADDR:  $write("  dst: ADDR");
+              `MCPU_OP_DST_RAM:   $write("  dst: RAM[0x%x]", reg_addr);
+              `MCPU_OP_DST_ALU_A: $write("  dst: ALU_A");
+              `MCPU_OP_DST_ALU_B: $write("  dst: ALU_B");
+              `MCPU_OP_DST_I:     $write("  dst: I");
+              `MCPU_OP_DST_J:     $write("  dst: J");
+              `MCPU_OP_DST_K:     $write("  dst: K");
+            endcase
+            if (op_is_cond) begin
+               $write("  should_execute: %b", should_execute);
+            end
+            $display("");
+          end
         `endif
+
         if (should_execute) begin
           case (op_dst)
             `MCPU_OP_DST_PC: cnt_pc <= data_out;
